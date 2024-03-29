@@ -1,14 +1,13 @@
 package org.severstal.data.infras.repository;
 
+import org.severstal.data.domain.Product;
 import org.severstal.data.domain.TenderItem;
 import org.severstal.data.repository.DataRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,5 +37,48 @@ public class ClickhouseDataRepository implements DataRepository {
             }
             return ps.executeBatch().length;
         }
+    }
+
+    @Override
+    public List<Product> GetProducts() throws SQLException {
+        String query = "select product_name from own_products";
+        List<Product> products = new ArrayList<>();
+        try (PreparedStatement ps = this.conn.prepareStatement(query)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                var productName = rs.getString(1);
+                var product = new Product();
+                product.setName(productName);
+
+                products.add(product);
+            }
+
+        }
+
+        return products;
+    }
+
+    @Override
+    public List<TenderItem> Match(String phrase) throws SQLException {
+        String query = "select link, name, count, unit\n" +
+                "from parsed_items\n" +
+                "where (ngramDistanceCaseInsensitive(name, ?) as t) < 0.89\n" +
+                "order by t asc;";
+        List<TenderItem> items = new ArrayList<>();
+        try (PreparedStatement ps = this.conn.prepareStatement(query)) {
+            ps.setString(1, phrase);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                var link = rs.getString(1);
+                var name = rs.getString(2);
+                var count = rs.getDouble(3);
+                var unit = rs.getString(4);
+
+                items.add(new TenderItem(link, name, count, unit, 0, ""));
+            }
+
+        }
+
+        return items;
     }
 }

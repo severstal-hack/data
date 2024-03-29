@@ -22,9 +22,11 @@ public class Listener {
 
     @RabbitListener(queues = "data-queue")
     public void worker(String message) throws Exception {
-        log.debug("Received new RMQ message");
+        log.info("Received new RMQ message");
         Gson gson = new Gson();
         List<TenderItem> items = Arrays.stream(gson.fromJson(message, TenderItem[].class)).toList();
+        log.info("{} items received", items.size());
         int count = dataRepository.AddParsedItems(items);
+        log.info("{} successfully added", count);
     }
 }
